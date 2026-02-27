@@ -270,7 +270,7 @@ const filters = ref({
 
 const currentMatchedCount = computed(() => {
     const flags = buildFilterFlags();
-    return filterCandidates(allUsers.value, flags).matched.length;
+    return filterCandidates(poolUsers.value, flags).matched.length;
 });
 
 // --- selection helpers ---
