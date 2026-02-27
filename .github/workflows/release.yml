@@ -1,0 +1,122 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # ────────────────────────────── CLI Binaries ──────────────────────────────
+  release-cli:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            target: node20-win-x64
+            artifact: bili_lottery-cli-win-x64.exe
+          - os: macos-latest
+            target: node20-macos-x64
+            artifact: bili_lottery-cli-macos-x64
+          - os: macos-latest
+            target: node20-macos-arm64
+            artifact: bili_lottery-cli-macos-arm64
+          - os: ubuntu-latest
+            target: node20-linux-x64
+            artifact: bili_lottery-cli-linux-x64
+          - os: ubuntu-latest
+            target: node20-linux-arm64
+            artifact: bili_lottery-cli-linux-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build & Bundle CLI
+        run: |
+          pnpm build:main
+          pnpm bundle:cli
+
+      - name: Package binary
+        run: pnpm exec pkg dist/cli/main.cjs -t ${{ matrix.target }} -o release/cli/${{ matrix.artifact }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: release/cli/${{ matrix.artifact }}
+
+  # ────────────────────────────── GUI Installers ────────────────────────────
+  release-gui:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform_flag: --win
+          - os: macos-latest
+            platform_flag: --mac
+          - os: ubuntu-latest
+            platform_flag: --linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build & Bundle GUI
+        run: |
+          pnpm build
+          pnpm bundle:gui
+
+      - name: Package Electron app
+        run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.platform_flag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gui-${{ matrix.os }}
+          path: |
+            release/gui/*.exe
+            release/gui/*.dmg
+            release/gui/*.zip
+            release/gui/*.AppImage
+            release/gui/*.deb
+
+  # ────────────────────────────── Publish Release ───────────────────────────
+  publish:
+    needs: [release-cli, release-gui]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: find artifacts -type f | head -50
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true

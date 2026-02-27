@@ -1,0 +1,60 @@
+appId: com.bilibili.lottery
+productName: BiliLottery
+copyright: Copyright © 2026
+
+directories:
+  output: release/gui
+
+# Only include the pre-bundled dist/gui directory (no node_modules needed).
+files:
+  - dist/gui/**/*
+
+# Override package.json fields inside the packaged app so Electron
+# finds the CJS main-process bundle and treats .js as CommonJS.
+extraMetadata:
+  main: dist/gui/main/main.js
+  type: commonjs
+
+asar: true
+
+# Dependencies are already bundled by esbuild — skip native rebuild.
+npmRebuild: false
+# Don't try to install production dependencies into the asar.
+# All code is self-contained in the bundles.
+nodeGypRebuild: false
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  identity: null
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+        - arm64
+    - target: deb
+      arch:
+        - x64
+        - arm64
