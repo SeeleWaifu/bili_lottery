@@ -3,7 +3,7 @@ import { randomInt } from 'node:crypto';
 import type { Candidate, FilterFlags, FilterSplitResult, LotteryRelation } from './types.js';
 
 // Re-export filter logic and domain types so existing imports keep working.
-export { filterCandidates, relationMatches } from './filter.js';
+export { filterCandidates } from './filter.js';
 export type { Candidate, FilterFlags, FilterSplitResult, LotteryRelation };
 
 // ── shuffle (Fisher-Yates, cryptographic RNG) ───────────────────────

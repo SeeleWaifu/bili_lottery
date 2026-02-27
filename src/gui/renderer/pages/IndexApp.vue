@@ -389,49 +389,7 @@ async function onSelectConfig() {
 }
 
 function onToggle(key: keyof typeof filters.value, event: Event) {
-    const checked = (event.target as HTMLInputElement).checked;
-
-    switch (key) {
-        case 'none':
-            if (checked) {
-                filters.value.none = true;
-                filters.value.fan = false;
-                filters.value.follow = false;
-                filters.value.mutual = false;
-            } else {
-                filters.value.none = false;
-            }
-            break;
-        case 'mutual':
-            filters.value.fan = checked;
-            filters.value.follow = checked;
-            filters.value.none = false;
-            break;
-        case 'fan':
-            filters.value.fan = checked;
-            if (checked) {
-                filters.value.none = false;
-            }
-            break;
-        case 'follow':
-            filters.value.follow = checked;
-            if (checked) {
-                filters.value.none = false;
-            }
-            break;
-        case 'likedBySelf':
-            filters.value.likedBySelf = checked;
-            return;
-        case 'likedByUp':
-            filters.value.likedByUp = checked;
-            return;
-    }
-
-    filters.value.mutual = filters.value.fan && filters.value.follow;
-
-    if (filters.value.fan || filters.value.follow) {
-        filters.value.none = false;
-    }
+    filters.value[key] = (event.target as HTMLInputElement).checked;
 }
 
 function buildFilterFlags(): FilterFlags {
@@ -524,44 +482,52 @@ async function onEnrichRelations() {
     enrichAbortFlag = false;
 
     const users = allUsers.value;
+    const BATCH_SIZE = 5;
     let consecutiveErrors = 0;
 
-    for (let i = 0; i < users.length; i++) {
+    // Helper to process a single user
+    const processUser = async (user: Candidate, idx: number) => {
+        if (enrichAbortFlag || user.relation !== 'none') return null;
+
+        const result = await window.api.enrichRelation(user.uid);
+        return { idx, result };
+    };
+
+    // Iterate in chunks
+    for (let i = 0; i < users.length; i += BATCH_SIZE) {
         if (enrichAbortFlag) {
             toast.warn('已停止加载关系数据');
             break;
         }
 
-        // Skip already-enriched users (relation !== 'none' means it was set by a prior run)
-        if (users[i].relation !== 'none') {
-            enrichedCount.value = i + 1;
-            consecutiveErrors = 0;
-            continue;
-        }
+        const batch = users.slice(i, i + BATCH_SIZE);
+        const promises = batch.map((u, offset) => processUser(u, i + offset));
+        const results = await Promise.all(promises);
 
-        const result = await window.api.enrichRelation(users[i].uid);
-        if (result.isOk()) {
-            users[i] = { ...users[i], relation: result.value };
-            consecutiveErrors = 0;
-        } else {
-            // Graceful degradation: keep 'none', mark error state
-            enrichError.value = true;
-            consecutiveErrors++;
-            toast.warn(`加载用户 ${users[i].uname} (uid: ${users[i].uid}) 关系数据失败: ${result.error.message}`);
-            // Auto-stop after 5 consecutive failures (likely rate-limited)
-            if (consecutiveErrors >= 5) {
-                toast.error(`连续请求失败：${result.error}，已自动停止加载关系数据`);
-                break;
+        // Process results
+        for (const item of results) {
+            if (!item) continue; // Skipped (aborted or already done)
+
+            const { idx, result } = item;
+            if (result.isOk()) {
+                users[idx] = { ...users[idx], relation: result.value };
+                consecutiveErrors = 0;
+            } else {
+                enrichError.value = true;
+                consecutiveErrors++;
+                toast.warn(`加载用户 ${users[idx].uname} 失败: ${result.error.message}`);
             }
+            updateUserInLists(users[idx]);
         }
 
-        enrichedCount.value = i + 1;
+        if (consecutiveErrors >= 5) {
+            toast.error('连续请求失败，已自动停止加载');
+            break;
+        }
 
-        // Also update the user in pool/drawPool lists reactively
-        updateUserInLists(users[i]);
+        enrichedCount.value = Math.min(i + BATCH_SIZE, users.length);
     }
 
-    // Trigger reactivity for allUsers
     allUsers.value = [...users];
     isEnrichingRelations.value = false;
 
