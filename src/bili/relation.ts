@@ -2,7 +2,7 @@ import z from 'zod';
 import { CookieJarGot } from './login.js';
 import { WbiSignGot } from './wbi_sign.js';
 import { ok, err, Result } from 'neverthrow';
-import { toError } from '../error.js';
+import { toError } from '../shared/error.js';
 import { apiHeaders } from './headers.js';
 
 const RelationSchema = z.object({

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CookieJar } from 'tough-cookie';
 
-import { toError } from '../../error.js';
+import { toError } from '../../shared/error.js';
 import type {
     DrawParams,
     DrawResult,

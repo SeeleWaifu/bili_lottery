@@ -21,6 +21,7 @@ import {
     type LotteryRelation,
 } from '../app/lottery.js';
 import { ok, err, type Result } from 'neverthrow';
+import { toError } from '../shared/error.js';
 
 const cli = cac();
 
@@ -222,7 +223,7 @@ cli.help();
 try {
     cli.parse();
 } catch (e) {
-    console.log(`${e instanceof Error ? e.message : String(e)}`);
+    console.log(`${toError(e)}`);
     console.log('Use --help to see available commands and options.');
 }
 if (process.argv.length <= 2) {

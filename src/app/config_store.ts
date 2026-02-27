@@ -4,7 +4,7 @@ import path from 'node:path';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { SerializedCookieJar } from 'tough-cookie';
-import { toError } from '../error.js';
+import { toError } from '../shared/error.js';
 
 const AppConfigSchema = z.object({
     cookieJar: z.string().nullable(),
