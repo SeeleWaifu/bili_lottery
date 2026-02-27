@@ -89,9 +89,7 @@ jobs:
           pnpm bundle:gui
 
       - name: Package Electron app
-        run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.platform_flag }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.platform_flag }} --publish never
 
       - uses: actions/upload-artifact@v4
         with:
