@@ -7,8 +7,8 @@ import { CookieJar } from 'tough-cookie';
 
 import { toError } from '../../error.js';
 import type {
-    FilterAndDrawParams,
-    FilterAndDrawResult,
+    DrawParams,
+    DrawResult,
     LoginStatus,
     NativeApi,
     NativeEventSender,
@@ -18,7 +18,7 @@ import { NativeApiKeys } from '../types.js';
 import { AppConfig, ConfigStore } from '../../app/config_store.js';
 import { fetchCandidates, mapRelation } from '../../app/candidate_loader.js';
 import { requestRelations } from '../../bili/relation.js';
-import { filterCandidates, shuffleCandidates } from '../../app/lottery.js';
+import { shuffleCandidates } from '../../app/lottery.js';
 import { createWbiSignGot, type WbiSignGot } from '../../bili/wbi_sign.js';
 import {
     checkQrCodeStatus,
@@ -415,13 +415,15 @@ class Session {
         }
     }
 
-    async filterAndDraw(params: FilterAndDrawParams): Promise<Result<FilterAndDrawResult, Error>> {
+    async draw(params: DrawParams): Promise<Result<DrawResult, Error>> {
         try {
-            const { candidates, flags, winnerCount } = params;
-            const { matched } = filterCandidates(candidates, flags);
-            const shuffled = shuffleCandidates(matched);
-            const winners = shuffled.slice(0, Math.min(Math.max(1, winnerCount), matched.length));
-            return ok({ matched, winners });
+            const { candidates, winnerCount } = params;
+            const shuffled = shuffleCandidates(candidates);
+            const winners = shuffled.slice(
+                0,
+                Math.min(Math.max(1, winnerCount), candidates.length),
+            );
+            return ok({ winners });
         } catch (error) {
             return err(toError(error));
         }

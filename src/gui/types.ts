@@ -28,18 +28,16 @@ export const NativeApiKeys = [
     'logout',
     'loadCandidates',
     'enrichRelation',
-    'filterAndDraw',
+    'draw',
     'openExternal',
 ] as const;
 
-export type FilterAndDrawParams = {
+export type DrawParams = {
     candidates: Candidate[];
-    flags: FilterFlags;
     winnerCount: number;
 };
 
-export type FilterAndDrawResult = {
-    matched: Candidate[];
+export type DrawResult = {
     winners: Candidate[];
 };
 
@@ -57,7 +55,7 @@ export type NativeApi = {
         mode?: string,
     ) => Promise<Result<Candidate[], Error>>;
     enrichRelation: (uid: string) => Promise<Result<LotteryRelation, Error>>;
-    filterAndDraw: (params: FilterAndDrawParams) => Promise<Result<FilterAndDrawResult, Error>>;
+    draw: (params: DrawParams) => Promise<Result<DrawResult, Error>>;
     openExternal: (url: string) => Promise<Result<void, Error>>;
 };
 

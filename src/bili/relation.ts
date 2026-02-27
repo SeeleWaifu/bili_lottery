@@ -9,7 +9,7 @@ const RelationSchema = z.object({
     mid: z.number(),
     attribute: z.number(),
     mtime: z.number(),
-    tag: z.array(z.string()).nullable(),
+    tag: z.array(z.number()).nullable(),
     special: z.number(),
 });
 

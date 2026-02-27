@@ -201,7 +201,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, toRaw } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import {
     filterCandidates,
     type LoginStatus,
@@ -448,8 +448,8 @@ function buildFilterFlags(): FilterFlags {
 /** Auto-filter: distribute ALL users into pool / drawPool, resetting manual adjustments. */
 function applyFilters() {
     const flags = buildFilterFlags();
-    const { matched, unmatched } = filterCandidates(allUsers.value, flags);
-    drawPool.value = matched;
+    const { matched, unmatched } = filterCandidates(poolUsers.value, flags);
+    drawPool.value.push(...matched);
     poolUsers.value = unmatched;
     winnerUsers.value = [];
     poolSelected.clear();
@@ -462,12 +462,14 @@ async function drawWinners() {
         return;
     }
 
-    const flags = buildFilterFlags();
     const count = Math.max(1, Number(winnerCount.value) || 1);
 
-    const result = await window.api.filterAndDraw({
-        candidates: toRaw(drawPool.value),
-        flags: { relations: [], likedBySelf: false, likedByUp: false },
+    // Deep-clone to strip Vue reactive proxies — reactive objects cannot be
+    // structured-cloned by Electron IPC.
+    const plainCandidates = JSON.parse(JSON.stringify(drawPool.value));
+
+    const result = await window.api.draw({
+        candidates: plainCandidates,
         winnerCount: count,
     });
 
@@ -476,7 +478,7 @@ async function drawWinners() {
             winnerUsers.value = winners;
         },
         error => {
-            toast.error(`抽奖失败: ${error.message}`);
+            toast.error(`抽奖失败: ${error}`);
         },
     );
 }
@@ -545,7 +547,7 @@ async function onEnrichRelations() {
             // Graceful degradation: keep 'none', mark error state
             enrichError.value = true;
             consecutiveErrors++;
-
+            toast.warn(`加载用户 ${users[i].uname} (uid: ${users[i].uid}) 关系数据失败: ${result.error.message}`);
             // Auto-stop after 5 consecutive failures (likely rate-limited)
             if (consecutiveErrors >= 5) {
                 toast.error(`连续请求失败：${result.error}，已自动停止加载关系数据`);

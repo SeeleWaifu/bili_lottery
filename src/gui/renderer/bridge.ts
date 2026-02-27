@@ -33,6 +33,7 @@ import './env.d.ts';
                         const result = await api[key](...args);
                         return recoverResult(result);
                     } catch (error) {
+                        console.error(`Error calling API method ${String(prop)}:`, error);
                         return new Err(error instanceof Error ? error : new Error(String(error)));
                     }
                 };
