@@ -70,7 +70,3 @@ src/
 │   └── renderer/   # Vue 页面
 scripts/            # 打包 & 发布脚本
 ```
-
-## License
-
-ISC
