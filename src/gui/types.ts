@@ -18,6 +18,11 @@ export type LoginStatus = {
     };
 };
 
+export type ExtractedOid = {
+    oid: string;
+    type: string;
+};
+
 export const NativeApiKeys = [
     'getConfigPath',
     'pickConfigPath',
@@ -30,6 +35,7 @@ export const NativeApiKeys = [
     'enrichRelation',
     'draw',
     'openExternal',
+    'extractOidFromUrl',
 ] as const;
 
 export type DrawParams = {
@@ -57,6 +63,7 @@ export type NativeApi = {
     enrichRelation: (uid: string) => Promise<Result<LotteryRelation, Error>>;
     draw: (params: DrawParams) => Promise<Result<DrawResult, Error>>;
     openExternal: (url: string) => Promise<Result<void, Error>>;
+    extractOidFromUrl: (url: string) => Promise<Result<ExtractedOid, Error>>;
 };
 
 export type NativeApiContract = {

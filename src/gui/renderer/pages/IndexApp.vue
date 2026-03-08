@@ -41,9 +41,14 @@
             <h1>抽奖面板</h1>
 
             <div class="source-row">
+                <input v-model="extractUrl" class="input url-input" type="text" placeholder="输入评论区/视频链接，自动提取 oid" />
+                <button type="button" class="action-btn" :disabled="isExtracting" @click="onExtractOid">{{ isExtracting ? '提取中…' : '提取' }}</button>
+            </div>
+
+            <div class="source-row">
                 <input v-model="oid" class="input" type="text" placeholder="oid" />
                 <input v-model="type" class="input" type="text" placeholder="type" />
-                <input v-model="mode" class="input" type="text" placeholder="mode (默认 2)" />
+                <input v-model="mode" class="input" type="text" placeholder="mode (2:按时间排序)" />
                 <button type="button" class="action-btn" @click="onLoadCandidates" :disabled="isLoadingCandidates || isEnrichingRelations">加载初始用户</button>
             </div>
 
@@ -222,6 +227,9 @@ const configPath = ref('配置文件: -');
 const oid = ref('');
 const type = ref('');
 const mode = ref('2');
+
+const extractUrl = ref('');
+const isExtracting = ref(false);
 
 /** All loaded users — preserved as the single source of truth. */
 const allUsers = ref<Candidate[]>([]);
@@ -437,6 +445,29 @@ async function drawWinners() {
         },
         error => {
             toast.error(`抽奖失败: ${error}`);
+        },
+    );
+}
+
+async function onExtractOid() {
+    const url = extractUrl.value.trim();
+    if (!url) {
+        toast.warn('请输入评论区或视频链接');
+        return;
+    }
+
+    isExtracting.value = true;
+    const result = await window.api.extractOidFromUrl(url);
+    isExtracting.value = false;
+
+    result.match(
+        extracted => {
+            oid.value = extracted.oid;
+            type.value = extracted.type;
+            toast.info(`提取成功: oid=${extracted.oid}, type=${extracted.type}`);
+        },
+        error => {
+            toast.error(`提取失败: ${error.message}`);
         },
     );
 }
@@ -728,6 +759,11 @@ h2 {
 
 .winner-input {
     width: 110px;
+}
+
+.url-input {
+    flex: 1;
+    min-width: 200px;
 }
 
 .hit-tag {

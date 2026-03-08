@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, OpenDialogOptions, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, OpenDialogOptions, session, shell } from 'electron';
 import { BaseWindowConstructorOptions, WebPreferences } from 'electron/utility';
 import { err, ok, type Result } from 'neverthrow';
 import path from 'node:path';
@@ -9,6 +9,7 @@ import { toError } from '../../shared/error.js';
 import type {
     DrawParams,
     DrawResult,
+    ExtractedOid,
     LoginStatus,
     NativeApi,
     NativeEventSender,
@@ -435,6 +436,77 @@ class Session {
         try {
             await shell.openExternal(url);
             return ok(undefined);
+        } catch (error) {
+            return err(toError(error));
+        }
+    }
+
+    // ── IPC Handlers: Extract OID ──────────────────────────────────────
+
+    async extractOidFromUrl(url: string): Promise<Result<ExtractedOid, Error>> {
+        try {
+            const REPLY_API = 'https://api.bilibili.com/x/v2/reply/wbi/main';
+            const TIMEOUT_MS = 30_000;
+
+            // Create an isolated session so no cookies leak
+            const partition = `extract-oid-${Date.now()}`;
+            const ses = session.fromPartition(partition, { cache: false });
+
+            const win = new BrowserWindow({
+                show: false,
+                width: 1280,
+                height: 720,
+                webPreferences: {
+                    session: ses,
+                    contextIsolation: true,
+                    nodeIntegration: false,
+                    sandbox: true,
+                },
+            });
+
+            return await new Promise<Result<ExtractedOid, Error>>(resolve => {
+                let resolved = false;
+                const cleanup = () => {
+                    if (!win.isDestroyed()) win.close();
+                };
+
+                const timer = setTimeout(() => {
+                    if (!resolved) {
+                        resolved = true;
+                        cleanup();
+                        resolve(err(new Error('提取超时，未能捕获到评论区请求')));
+                    }
+                }, TIMEOUT_MS);
+
+                ses.webRequest.onBeforeRequest({ urls: [`${REPLY_API}*`] }, (details, callback) => {
+                    if (!resolved) {
+                        try {
+                            const u = new URL(details.url);
+                            const oid = u.searchParams.get('oid') ?? '';
+                            const type = u.searchParams.get('type') ?? '';
+
+                            if (oid && type) {
+                                resolved = true;
+                                clearTimeout(timer);
+                                cleanup();
+                                resolve(ok({ oid, type }));
+                            }
+                        } catch {
+                            /* ignore parse errors */
+                        }
+                    }
+                    callback({});
+                });
+
+                win.webContents.loadURL(url).catch(loadErr => {
+                    if (!resolved) {
+                        resolved = true;
+                        clearTimeout(timer);
+                        cleanup();
+                        resolve(err(toError(loadErr)));
+                    }
+                });
+            });
         } catch (error) {
             return err(toError(error));
         }
